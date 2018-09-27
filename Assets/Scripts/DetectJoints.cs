@@ -5,6 +5,7 @@ using UnityEngine;
 using Windows.Kinect;
 
 //Manages position input from the Kinect regarding a single joint
+//Required for all joints you want the Kinect to track
 
 public class DetectJoints : MonoBehaviour {
 
@@ -16,6 +17,21 @@ public class DetectJoints : MonoBehaviour {
 	public HandState handBehavior;
 	//private Vector3 rot;//rotation
 
+	public bool isLeftHandClosed;
+	public bool isRightHandClosed;
+
+	private float posX, posY;
+	//arbitrary non-zero start values
+	private float oldPosX1 = 0.1f;
+	private float oldPosY1 = 0.1f;
+	private float oldPosX2 = 0.1f;
+	private float oldPosY2 = 0.1f;
+	private float oldPosX3 = 0.1f;
+	private float oldPosY3 = 0.1f;
+	private float oldPosX4 = 0.1f;
+	private float oldPosY4 = 0.1f;
+	private float easedPosX = 0.1f;
+	private float easedPosY = 0.1f;
 
 	// Use this for initialization
 	void Start () 
@@ -53,15 +69,35 @@ public class DetectJoints : MonoBehaviour {
 			if(body.IsTracked)
 			{
 				var pos = body.Joints[TrackedJoint].Position;
-				gameObject.transform.position = new Vector3(pos.X * multiplier, pos.Y * multiplier);
-				//Debug.Log("Expected: Hand Left > " + body.Joints[TrackedJoint].JointType);//this is suggesting that everything might be broken?
-				//set rotation to the rotation of the joint
-				//it's unclear if this is breaking it, or if it's the light
-				//var orientation = body.JointOrientations[TrackedJoint].Orientation;
-				//Vector3 rot = new Vector3((float)orientation.Pitch(), (float)orientation.Yaw(), (float)orientation.Roll());
-				//gameObject.transform.rotation.eulerAngles = rot;
-				//var rot = body.Joints[TrackedJoint].Or
-				//Debug.Log("Joint Orientation? " + body.Joints[TrackedJoint].transform.rotation.eulerAngles);
+				posX = pos.X;
+				posY = pos.Y;
+
+				//Debug.Log(TrackedJoint + " is at " + easedPosX + " " + easedPosY);
+				//easedPosX = (posX * easedPosX)/lastFramePosX;
+				//easedPosY = (posY * easedPosY)/lastFramePosY;
+				//if you wanted to make this fancier, you could weight these
+				easedPosX = (posX + oldPosX1 + (oldPosX2/2) + (oldPosX3/4) + (oldPosX4/4))/3;
+				easedPosY = (posY + oldPosY1 + (oldPosY2/2) + (oldPosY3/4) + (oldPosY4/4))/3;
+
+				// lastFramePosX = posX;
+				// lastFramePosY = posY;
+
+				oldPosX4 = oldPosX3;
+				oldPosX3 = oldPosX2;
+				oldPosX2 = oldPosX1;
+				oldPosX1 = posX;
+				oldPosY4 = oldPosY3;
+				oldPosY3 = oldPosY2;
+				oldPosY2 = oldPosY1;
+				oldPosY1 = posY;
+
+				if(!(TrackedJoint == Windows.Kinect.JointType.HandLeft || TrackedJoint == Windows.Kinect.JointType.HandRight)){//if what we're tracking isn't a hand
+					gameObject.transform.localPosition = new Vector3(easedPosX * multiplier, easedPosY * multiplier);
+				}
+
+				isLeftHandClosed = body.HandLeftState == HandState.Closed;
+				isRightHandClosed = body.HandRightState == HandState.Closed;
+
 			}
 		}
 		
@@ -73,5 +109,19 @@ public class DetectJoints : MonoBehaviour {
 	public void SetTrackedJoint(JointType jointName){
 		TrackedJoint = jointName;
 		Debug.Log("Tracked Joint> " + TrackedJoint);
+	}
+	public float getPosX(){
+		return posX;
+	}
+	public float getPosY(){
+		return posY;
+	}
+
+	public float getEasedPosX(){
+		return easedPosX;
+	}
+
+	public float getEasedPosY(){
+		return easedPosY;
 	}
 }
